@@ -1,6 +1,6 @@
 # Table of contents
 
-* [C++11 新特性理解](C++11新特性理解)
-* [虚函数内存分布](虚函数内存分布.md)
-* [构造函数](构造函数.md)
+* [C++11 新特性理解](C++11NewFeatureUnderstanding.md)
+* [虚函数内存分布](VirtualFuncMemoryDistribution.md)
+* [构造函数](Constructor.md)
 
