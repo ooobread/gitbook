@@ -326,3 +326,73 @@ int main()
 
 通常来说，只实现移动语义的情况也是存在的，通常来说为“资源型”的类型，例如智能指针、文件流等。
 
+### 完美转发
+完美转发(perfect forwarding)，指在函数模板中，完全依照模板的参数的类型，将参数传递给函数模板中调用的另一个函数。如下例子：
+```cpp
+template <typename T>
+void IamForwarding(T t) { IrunCodeActually(t); }
+```
+在上述例子中，IamForwarding为一个转发函数模板，而真正执行的函数为IrunCodeActually。这里由于没有使用引用，因此多了一次拷贝开销。要解决这个问题，我们可以使用一个引用类型来消除这个开销，但是为了能够让改模板函数既可以接收左值引用，也可以接收右值引用，我们需要使用常量引用作为入参类型，而这就可能出现如下情况：
+```cpp
+void IrunCodeActually(int t) {}
+template <typename T>
+void IamForwarding(const T& t) { IrunCodeActually(t); } // IrunCodeActually入参为非常量左值引用类型，因此无法接收常亮左值引用类型t。
+```
+为了解决这个问题，C++11引入了“引用折叠”（reference collapsing）的语言规则，结合新的模板推到规则来完成完美转发。
+
+考虑以下语句：
+```cpp
+typedef const int T;
+typedef T& TR;
+TR& v = 1; // 在C++98中会导致编译错误
+```
+上述例子中，`TR&`将被推导为`const int T &&`,由于C++98不支持右值引用，因此将会编译错误。
+
+而结合C++11新的“引用折叠”规则，变量v将被推导为`const int T &`类型，考虑到常量左值引用为万能类型，因此该语句将编译成功。
+
+实际上，“引用折叠”简单来说为以下推导：
+
+`T &` + `&` = `T &`
+
+`T &` + `&&` = `T &`
+
+`T &&` + `&` = `T &`
+
+`T &&` + `&&` = `T &&`
+
+因此我们可以将模板函数写为如下形式，来达成我们的完美转发
+```cpp
+template <typename T>
+void IamForwarding(T && t)
+{
+    IrunCodeActually(static_cast<T &&>(t)); // static_cast是为了右值引用准备的。在右值引用表达式中，t实际上是一个左值，为了继续使用右值传递，我们使用static_cast将其转换为右值引用（类似于std::move，或者后面提到的std::forward）。
+}
+```
+
+这样，通过新的类型推导，我们既可以传入左值引用，也可以传入右值引用。
+
+一个完美转发的例子：
+```cpp
+#include <iostream>
+using namespace std;
+
+void RunCode(int && m) { cout << "rvalue ref" << endl; }
+void RunCode(int & m) { cout << "lvalue ref" << endl; }
+void RunCode(const int && m) { cout << "const rvalue ref" << endl; }
+void RunCode(const int & m) { cout << "cosnt lvalue ref" << endl; }
+
+template <typename T>
+void PerfectForward(T &&t) { RunCode(forward<T>(t)); }
+
+int main()
+{
+    int a = 0;
+    int b = 0;
+    const int c = 1;
+    const int d = 0;
+    PerfectForward(a); // lvalue ref
+    PerfectForward(move(b)); // rvalue ref
+    PerfectForward(c); // const lvalue ref
+    PerfectForward(move(d)); // const rvalue ref
+}
+```
