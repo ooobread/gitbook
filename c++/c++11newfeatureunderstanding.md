@@ -34,7 +34,7 @@ struct B : A {
 
 这样，在衍生类B中，我们可以使用基类A的函数f，在传入整型数调用函数f时，使用的是A中的函数，传入浮点数调用函数f时，使用的是B中的函数。
 
-同理，对于构造函数，我们也可以采用类似方法，直接使用A的构造函数初始化： 
+同理，对于构造函数，我们也可以采用类似方法，直接使用A的构造函数初始化：
 
 ```cpp
 struct A {
@@ -72,7 +72,7 @@ class HasPtrMem {
 public:
     HasPtrMem : d(new int(0)) {}
     ~HasPtrMem { delete d; }
-    
+
     int* d;
 };
 
@@ -91,7 +91,7 @@ public:
     HasPtrMem : d(new int(0)) {}
     HasPtrMem(HasPtrMem &h) : d(new int(*(h.d))) {}
     ~HasPtrMem { delete d; }
-    
+
     int* d;
 };
 
@@ -116,17 +116,17 @@ public:
     {
         cout << "Construct: " << ++n_cstr << endl;
     }
-    
+
     HasPtrMem(const HasPtrMem &h) : d(new int(*(h.d)))
     {
         cout << "Copy construct: " << ++n_cptr << endl;
     }
-    
+
     ~HasPtrMem()
     {
         cout << "Destruct: " << ++n_dstr << endl;
     }
-    
+
     int* d;
     static int n_cstr;
     static int n_dstr;
@@ -188,12 +188,12 @@ public:
     {
         cout << "Construct: " << ++n_cstr << endl;
     }
-    
+
     HasPtrMem(const HasPtrMem &h) : d(new int(*(h.d)))
     {
         cout << "Copy construct: " << ++n_cptr << endl;
     }
-    
+
     HasPtrMem(HasPtrMem &&h) : d(h.d)
     {
         h.d = nullptr;
@@ -208,7 +208,7 @@ public:
 
         cout << "Destruct: " << ++n_dstr << endl;
     }
-    
+
     int* d;
     static int n_cstr;
     static int n_dstr;
@@ -238,21 +238,27 @@ int main()
 // Destruct: 2
 // Destruct: 3
 ```
+
 我们可以看到使用移动构造函数之后，我们避免使用了内存的拷贝，仅仅通过一次移动构造函数就将内存所有权转交给另一个对象中的指针，避免了性能的浪费。这里使用了新的&&语法，即右值引用。
 
 ### 右值引用
+
 C++中的值可以被分为左值和右值，简单来说，左值是一个具体的，可以被察觉到的，或者说有名字的值；而右值则通常指向一些临时的、匿名的值（比如说1+3所产生的临时变量值）或者字面值（比如2、'c'、true）。在C++11之前，我们只能使用T&语法来引用左值，这叫做左值引用；C++11引入了右值引用（T&&）。左值引用是具名变量的别名，而右值引用则是匿名变量的别名。
 
 ### std::move: 强制转化为右值
+
 std::move 的功能为将一个左值强制转化为右值引用，继而我们可以通过右值引用使用该值，以用于移动语义。
 
 事实上，这个函数近似于对左值进行一个类型转换：
+
 ```cpp
 static_cast<T&&>(lvalue);
 ```
+
 因此，这个函数不会对左值的声明周期产生影响。也就是说，在上述例子中，lvalue的声明周期依然会持续到作用域结束，而不是在转换之后立即结束。
 
 下面是一个**错误**使用的例子：
+
 ```cpp
 #include <iostream>
 using namespace std;
@@ -276,7 +282,9 @@ int main()
     cout << *(a.i) << endl; // a的生命周期还未结束，但a.i被置空，因此会出现运行时错误
 }
 ```
+
 通常来说，我们需要使用std::move来将一个确实生命周期即将结束的对象转换为右值，以便使用移动构造函数。如下例子：
+
 ```cpp
 #include <iostream>
 using namespace std;
@@ -322,30 +330,38 @@ int main()
     return 0;
 }
 ```
+
 拷贝构造/复制和移动构造/赋值函数必须同时提供，或者同时不提供，才能保证类同时具有拷贝和移动语义，只声明其中一种的话，类都仅能实现一种语义。
 
 通常来说，只实现移动语义的情况也是存在的，通常来说为“资源型”的类型，例如智能指针、文件流等。
 
 ### 完美转发
-完美转发(perfect forwarding)，指在函数模板中，完全依照模板的参数的类型，将参数传递给函数模板中调用的另一个函数。如下例子：
+
+完美转发\(perfect forwarding\)，指在函数模板中，完全依照模板的参数的类型，将参数传递给函数模板中调用的另一个函数。如下例子：
+
 ```cpp
 template <typename T>
 void IamForwarding(T t) { IrunCodeActually(t); }
 ```
+
 在上述例子中，IamForwarding为一个转发函数模板，而真正执行的函数为IrunCodeActually。这里由于没有使用引用，因此多了一次拷贝开销。要解决这个问题，我们可以使用一个引用类型来消除这个开销，但是为了能够让改模板函数既可以接收左值引用，也可以接收右值引用，我们需要使用常量引用作为入参类型，而这就可能出现如下情况：
+
 ```cpp
 void IrunCodeActually(int t) {}
 template <typename T>
 void IamForwarding(const T& t) { IrunCodeActually(t); } // IrunCodeActually入参为非常量左值引用类型，因此无法接收常亮左值引用类型t。
 ```
+
 为了解决这个问题，C++11引入了“引用折叠”（reference collapsing）的语言规则，结合新的模板推到规则来完成完美转发。
 
 考虑以下语句：
+
 ```cpp
 typedef const int T;
 typedef T& TR;
 TR& v = 1; // 在C++98中会导致编译错误
 ```
+
 上述例子中，`TR&`将被推导为`const int T &&`,由于C++98不支持右值引用，因此将会编译错误。
 
 而结合C++11新的“引用折叠”规则，变量v将被推导为`const int T &`类型，考虑到常量左值引用为万能类型，因此该语句将编译成功。
@@ -361,6 +377,7 @@ TR& v = 1; // 在C++98中会导致编译错误
 `T &&` + `&&` = `T &&`
 
 因此我们可以将模板函数写为如下形式，来达成我们的完美转发
+
 ```cpp
 template <typename T>
 void IamForwarding(T && t)
@@ -372,6 +389,7 @@ void IamForwarding(T && t)
 这样，通过新的类型推导，我们既可以传入左值引用，也可以传入右值引用。
 
 一个完美转发的例子：
+
 ```cpp
 #include <iostream>
 using namespace std;
@@ -396,3 +414,4 @@ int main()
     PerfectForward(move(d)); // const rvalue ref
 }
 ```
+
