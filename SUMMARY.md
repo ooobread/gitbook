@@ -9,6 +9,8 @@
     * [类继承](c++/BaseKnowledgeCheck/ClassInheritance.md)
     * [基础知识](c++/BaseKnowledgeCheck/BasicKnowledge.md)
     * [关键字](c++/BaseKnowledgeCheck/Keywords.md)
+    * [函数指针与lambda匿名函数](c++/BaseKnowledgeCheck/FuncPointerAndLambdaFunc.md)
+    * [智能指针](c++/BaseKnowledgeCheck/AutoPointer.md)
   * [内部标准](c++/InternalStandard/README.md)
     * [C++通用语言规范](c++/InternalStandard/C++LanguageStandard.md)
 
